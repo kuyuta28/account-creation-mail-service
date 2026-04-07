@@ -4,6 +4,12 @@ Mail inbox management service. Cung cấp mailbox tạm thời để nhận emai
 
 **Stack**: FastAPI · aioimaplib · Playwright · SQLAlchemy · Pydantic
 
+## Setup
+
+```powershell
+.\setup.ps1
+```
+
 ## Run
 
 ```bash
