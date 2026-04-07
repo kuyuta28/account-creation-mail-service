@@ -11,3 +11,6 @@ data/*.db
 logs/*.log
 debug/
 screenshots/
+.venv/
+.pytest_cache/
+.ruff_cache/
