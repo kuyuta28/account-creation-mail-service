@@ -1,7 +1,7 @@
 """
 main.py — Start Mail Service server.
 
-Port mặc định: 8801
+Port mặc định: 8701
 Override: MAIL_HOST / MAIL_PORT env vars
 
 Usage:
@@ -27,6 +27,6 @@ if __name__ == "__main__":
     uvicorn.run(
         "src.mail_service.server:app",
         host=os.getenv("MAIL_HOST", "127.0.0.1"),
-        port=int(os.getenv("MAIL_PORT", "8801")),
+        port=int(os.getenv("MAIL_PORT", "8701")),
         reload=False,
     )

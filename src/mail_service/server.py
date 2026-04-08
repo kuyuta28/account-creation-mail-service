@@ -1,5 +1,5 @@
 """
-server.py — FastAPI app entry point cho Mail Service (port 8801).
+server.py — FastAPI app entry point cho Mail Service (port 8701).
 """
 from __future__ import annotations
 
