@@ -17,6 +17,9 @@ _AAR_PATH = Path(__file__).parent / "any-auto-register"
 if _AAR_PATH.exists() and str(_AAR_PATH) not in sys.path:
     sys.path.insert(0, str(_AAR_PATH))
 
+# Inject common package
+sys.path.insert(0, str(Path(__file__).parent.parent / "common" / "src"))
+
 import uvicorn
 
 if sys.platform == "win32":
