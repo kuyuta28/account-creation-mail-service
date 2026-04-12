@@ -37,6 +37,11 @@ SMS_WEBHOOK_PREFIX = "sms.webhook:"
 AAR_PREFIX = "aar:"
 _RETRYABLE = {429, 500, 502, 503, 504}
 
+_DEFAULT_HTTP_TIMEOUT_SEC = 15
+_DEFAULT_WAIT_TIMEOUT_SEC = 120
+_DEFAULT_POLL_INTERVAL_SEC = 5
+_DEFAULT_MAX_RETRIES = 3
+_DEFAULT_RETRY_MAX_DELAY_SEC = 30
 _DEFAULT_COOLDOWN_SEC = 120
 _DEFAULT_MAX_CONSECUTIVE_FAILS = 3
 
@@ -115,18 +120,19 @@ def provider_kind(provider: str) -> str:
 
 # ── HTTP helper ───────────────────────────────────────────────────────────────
 
-def _retry_delay(response: httpx.Response | None, attempt: int) -> int:
+def _retry_delay(response: httpx.Response | None, attempt: int, max_delay: int = _DEFAULT_RETRY_MAX_DELAY_SEC) -> int:
     if response is not None:
         retry_after = response.headers.get("Retry-After", "").strip()
         if retry_after.isdigit():
             return max(1, int(retry_after))
-    return min(30, 2 ** (attempt - 1) * 5)
+    return min(max_delay, 2 ** (attempt - 1) * 5)
 
 
 async def request_with_retry(
-    method: str, url: str, provider_name: str = "", max_retries: int = 3,
+    method: str, url: str, provider_name: str = "", max_retries: int = _DEFAULT_MAX_RETRIES,
     log_fn: LogFn | None = None,
     retryable_codes: frozenset[int] | None = None,
+    retry_max_delay: int = _DEFAULT_RETRY_MAX_DELAY_SEC,
     **kwargs,
 ) -> httpx.Response:
     _log = log_fn or _tprint
@@ -138,7 +144,7 @@ async def request_with_retry(
             try:
                 response = await client.request(method, url, **kwargs)
             except (httpx.ConnectError, httpx.TimeoutException) as exc:
-                delay = min(30, 2 ** (attempt - 1) * 5)
+                delay = min(retry_max_delay, 2 ** (attempt - 1) * 5)
                 _log(f"  [mail] {label} -> network error (attempt {attempt}/{max_retries}): {exc}")
                 if attempt < max_retries:
                     await asyncio.sleep(delay)
@@ -147,7 +153,7 @@ async def request_with_retry(
             if response.status_code not in _codes:
                 return response
             last_response = response
-            delay = _retry_delay(response, attempt)
+            delay = _retry_delay(response, attempt, max_delay=retry_max_delay)
             _log(f"  [mail] {label} -> {response.status_code} (attempt {attempt}/{max_retries}), waiting {delay}s...")
             if attempt < max_retries:
                 await asyncio.sleep(delay)

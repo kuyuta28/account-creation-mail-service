@@ -164,6 +164,11 @@ class MailConfig:
     max_consecutive_fails: int = 3
     db_path: Path = field(default_factory=lambda: Path("data/accounts.db"))
     retryable_status_codes: tuple[int, ...] = field(default_factory=lambda: (429, 500, 502, 503, 504))
+    http_timeout_sec: int = 15
+    wait_timeout_sec: int = 120
+    poll_interval_sec: int = 5
+    max_retries: int = 3
+    retry_max_delay_sec: int = 30
 
     @property
     def all_providers(self) -> tuple[str, ...]:
@@ -490,6 +495,11 @@ def _parse_mail(raw: dict, db_path: Path) -> MailConfig:
         max_consecutive_fails=int(_strict(raw, "max_consecutive_fails", "mail")),
         db_path=db_path,
         retryable_status_codes=tuple(int(c) for c in _strict(raw, "retryable_status_codes", "mail")),
+        http_timeout_sec=int(raw.get("http_timeout_sec", 15)),
+        wait_timeout_sec=int(raw.get("wait_timeout_sec", 120)),
+        poll_interval_sec=int(raw.get("poll_interval_sec", 5)),
+        max_retries=int(raw.get("max_retries", 3)),
+        retry_max_delay_sec=int(raw.get("retry_max_delay_sec", 30)),
     )
 
 

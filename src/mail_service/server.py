@@ -9,18 +9,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from ..config.settings import load_config
 from .exceptions import AppError, app_error_handler, generic_error_handler, http_exception_handler, validation_error_handler
 from .routers import mailbox, providers, sms
+
+_cfg = load_config()
+_cors_origins = list(_cfg.api.cors_origins)
 
 app = FastAPI(title="Mail Service", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:1420",
-        "http://localhost:1421",
-        "tauri://localhost",
-        "https://tauri.localhost",
-    ],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

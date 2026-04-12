@@ -31,6 +31,7 @@ api:
     - http://localhost:1420
     - http://localhost:1421
     - tauri://localhost
+    - https://tauri.localhost
 auth_sync:
   enabled: true
   target_dir: C:\Users\admin\.ccs\cliproxy\auth
