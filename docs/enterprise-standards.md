@@ -4,31 +4,34 @@
 
 ---
 
-## 1. Error Hierarchy
+## 1. Error Taxonomy
 
 ### Nguyên tắc
-- **CẤM** dùng `RuntimeError` trực tiếp.
+- **CẤM** dùng `RuntimeError` trực tiếp — phải dùng error class từ hierarchy.
 - **CẤM** match lỗi bằng string — phải dùng `isinstance()`.
 - **CẤM** nuốt lỗi (`except: pass`) — phải raise hoặc log + raise.
 
-### Hierarchy
+### Hierarchy (common/errors.py)
 
 ```
-MailServiceError (base)
-├── FatalMailError             → dừng ngay, không retry
-│   ├── NoProviderError        → không có provider nào configured
-│   └── InvalidConfigError     → config sai/thiếu
-├── RetryableMailError         → retry với provider khác
-│   ├── IMAPTimeoutError       → IMAP connection timeout
-│   ├── ProviderDownError      → provider không phản hồi
-│   └── AuthFailedError        → IMAP auth thất bại
-└── PermanentMailError         → trả lỗi về client
-    ├── MailboxExpiredError    → temp mail đã hết hạn
-    ├── MailNotFoundError      → không tìm thấy mail
-    └── InvalidAddressError    → địa chỉ email không hợp lệ
+AppError (base)
+├── RegistrationError       → lỗi flow đăng ký account
+├── MailError               → lỗi liên quan đến mailbox/email provider
+├── GoogleAuthError         → lỗi Google OAuth / login flow
+├── CaptchaError             → captcha solve thất bại
+├── BrowserError             → Playwright browser / page error
+├── ConfigError              → config sai / thiếu setting
+└── DatabaseError            → lỗi database layer
 ```
 
-### File: `src/mail_service/errors.py`
+### API Error Handling (src/mail_service/exceptions.py)
+
+```
+AppError → FastAPI app_error_handler → ApiResponse envelope
+4 handlers: app_error_handler, validation_error_handler, http_exception_handler, generic_error_handler
+```
+
+### File: `common/src/common/errors.py`, `src/mail_service/exceptions.py`
 
 ---
 
@@ -54,14 +57,17 @@ Khi lỗi:
   "success": false,
   "data": null,
   "error": {
-    "code": "MAILBOX_EXPIRED",
+    "code": "VALIDATION_ERROR",
     "message": "Temp mailbox has expired or been deleted"
   },
   "meta": { ... }
 }
 ```
 
-### File: `src/mail_service/schemas.py`, `src/mail_service/errors.py`
+### ErrorCode enum (common/enums.py)
+NOT_FOUND, CONFLICT, VALIDATION_ERROR, INTERNAL_ERROR, UNSUPPORTED_SERVICE, ALREADY_RUNNING, SESSION_EXPIRED, NO_ACCOUNTS, JOB_CANCELLED, TIMEOUT
+
+### File: `src/mail_service/schemas.py`, `src/mail_service/exceptions.py`
 
 ---
 
@@ -70,7 +76,7 @@ Khi lỗi:
 ### Nguyên tắc
 - Tất cả provider implement cùng interface.
 - Không gọi provider trực tiếp từ router — phải qua interface.
-- Provider failover: nếu provider chính fail → raise `RetryableMailError`, không tự fallback.
+- Provider failover: nếu provider chính fail → raise `MailError`, không tự fallback.
 
 ### Interface
 
@@ -114,14 +120,27 @@ async def delete_address(cfg: ProviderCfg, addr: str) -> None: ...
 ## 6. IMAP Async Rules
 
 - **`aioimaplib`** — KHÔNG dùng `imaplib` (blocking).
-- **Timeout bắt buộc** — `wait_for_mail` PHẢI có timeout, raise `IMAPTimeoutError` khi timeout.
+- **Timeout bắt buộc** — `wait_for_mail` PHẢI có timeout, raise `MailError` khi timeout.
 - **Connection pooling tối giản** — 1 connection per request, close sau khi xong.
 - **Graceful close** — `LOGOUT` trước khi close connection.
 - **CẤM** `asyncio.to_thread` với `imaplib` — phải dùng async-native.
 
 ---
 
-## 7. Testing
+## 7. Database
+
+### Nguyên tắc
+- **SQLAlchemy ORM** + SQLite WAL mode.
+- **NullPool** — không connection pooling.
+- **Idempotent migrations** — ALTER TABLE IF NOT EXISTS.
+- **PRAGMA** — busy_timeout=5000, synchronous=NORMAL.
+- **Retry** — `_retry_db_op()` cho "database is locked" errors.
+
+### File: `common/src/common/database/`
+
+---
+
+## 8. Testing
 
 ```
 tests/
@@ -131,17 +150,17 @@ tests/
 ```
 
 - Mock `aioimaplib.IMAP4_SSL` trong unit tests.
-- Test timeout path: `wait_for_mail` timeout → `IMAPTimeoutError`.
+- Test timeout path: `wait_for_mail` timeout → `MailError`.
 - Test provider routing: đúng provider được gọi theo config.
 
 ---
 
-## 8. Monitoring
+## 9. Monitoring
 
 ### Đã có
 - **Sentry** — error tracking.
 - **File logs** — rotation 10MB × 5 backups.
-- **`/health`** endpoint bắt buộc.
+- **`/api/health`** endpoint bắt buộc.
 
 ### Mail-specific
 - Log provider name theo mỗi request — dễ debug khi provider fail.
@@ -149,7 +168,7 @@ tests/
 
 ---
 
-## 9. Code Quality
+## 10. Code Quality
 
 - **Ruff** — BLE001, E722, UP.
 - **FP style** — tránh OOP.
