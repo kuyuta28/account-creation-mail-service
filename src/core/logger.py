@@ -176,23 +176,23 @@ class _TeeStream:
     def write(self, s: str) -> int:
         try:
             self._original.write(s)
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
         try:
             self._log_file.write(s)
             self._log_file.flush()
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
         return len(s) if s else 0
 
     def flush(self) -> None:
         try:
             self._original.flush()
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
         try:
             self._log_file.flush()
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
     def fileno(self) -> int:
