@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 import time
 
-from .._base import MAILOSAUR_BASE, MAILOSAUR_PREFIX, LogFn, Mailbox, random_string, request_with_retry, _tprint
+from .._base import MAILOSAUR_PREFIX, LogFn, Mailbox, random_string, request_with_retry, _tprint, get_mailosaur_base
 
 
 def _parts(provider: str) -> tuple[str, str]:
@@ -37,7 +37,7 @@ async def create_mailbox(provider: str) -> Mailbox:
         email=email,
         token=server_id,    # server_id stored in token
         account_id=tag,
-        base_url=MAILOSAUR_BASE,
+        base_url=get_mailosaur_base(),
         provider="mailosaur.com",
         api_key=api_key,
     )
@@ -46,7 +46,8 @@ async def create_mailbox(provider: str) -> Mailbox:
 async def get_messages(box: Mailbox) -> list[dict]:
     """Fetch tất cả messages từ server inbox."""
     label = f"mailosaur.com:{box.token}"
-    url = f"{MAILOSAUR_BASE}/messages"
+    base_url = box.base_url
+    url = f"{base_url}/messages"
     response = await request_with_retry(
         "GET", url,
         provider_name=label,
@@ -77,7 +78,8 @@ async def get_messages(box: Mailbox) -> list[dict]:
 async def get_message_body(box: Mailbox, message_id: str) -> str:
     """Fetch full message body theo ID."""
     label = f"mailosaur.com:{box.token}"
-    url = f"{MAILOSAUR_BASE}/messages/{message_id}"
+    base_url = box.base_url
+    url = f"{base_url}/messages/{message_id}"
     response = await request_with_retry(
         "GET", url,
         provider_name=label,

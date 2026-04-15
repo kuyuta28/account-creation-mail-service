@@ -18,7 +18,7 @@ import json
 import time
 from typing import Any
 
-from .._base import LogFn, Mailbox, _tprint
+from .._base import LogFn, Mailbox, _tprint, _get_mail_cfg
 
 AAR_PREFIX = "aar:"
 
@@ -83,11 +83,12 @@ async def wait_for_message(
     from_contains: str = "",
     subject_contains: str = "",
     timeout: int = 120,
-    poll_interval: int = 3,
+    poll_interval: int | None = None,
     log_fn: LogFn | None = None,
 ) -> dict | None:
     """Poll for a new message matching filters. Caches body for get_message_body()."""
     _log = log_fn or _tprint
+    _poll_interval = poll_interval if poll_interval is not None else _get_mail_cfg().aar_poll_interval_sec
     entry = _aar_instances.get(box.email)
     if entry is None:
         raise RuntimeError(f"No AAR mailbox instance found for {box.email!r}")
@@ -133,7 +134,7 @@ async def wait_for_message(
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             break
-        await asyncio.sleep(min(float(poll_interval), remaining))
+        await asyncio.sleep(min(float(_poll_interval), remaining))
 
     return None
 

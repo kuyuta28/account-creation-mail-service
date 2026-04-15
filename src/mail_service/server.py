@@ -19,7 +19,7 @@ _cors_origins = list(_cfg.api.cors_origins)
 init_db(_cfg.mail.db_path)
 seed_mail_providers(_cfg)
 
-app = FastAPI(title="Mail Service", version="1.0.0")
+app = FastAPI(title="Mail Service", version="1.0.0", description="Mail provider management service.")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,

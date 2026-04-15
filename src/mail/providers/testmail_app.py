@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 import time
 
-from .._base import TESTMAIL_BASE, TESTMAIL_PREFIX, LogFn, Mailbox, random_string, request_with_retry, _tprint
+from .._base import TESTMAIL_PREFIX, LogFn, Mailbox, random_string, request_with_retry, _tprint, get_testmail_base
 
 
 def _parts(provider: str) -> tuple[str, str]:
@@ -29,7 +29,7 @@ async def create_mailbox(provider: str) -> Mailbox:
         email=email,
         token=namespace,    # namespace stored in token field
         account_id=tag,
-        base_url=TESTMAIL_BASE,
+        base_url=get_testmail_base(),
         provider="testmail.app",
         api_key=api_key,
     )
@@ -45,8 +45,9 @@ async def get_messages(box: Mailbox, timestamp_from: int = 0) -> list[dict]:
     if timestamp_from:
         params["timestamp_from"] = timestamp_from
     label = f"testmail.app:{box.token}"
+    base_url = box.base_url
     response = await request_with_retry(
-        "GET", f"{TESTMAIL_BASE}/api/json",
+        "GET", f"{base_url}/api/json",
         provider_name=label,
         params=params,
         timeout=20,

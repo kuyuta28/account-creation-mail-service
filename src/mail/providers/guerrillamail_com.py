@@ -12,9 +12,8 @@ from __future__ import annotations
 import asyncio
 import time
 
-from .._base import LogFn, Mailbox, request_with_retry, _tprint
+from .._base import LogFn, Mailbox, request_with_retry, _tprint, get_guerrillamail_base
 
-GUERRILLAMAIL_BASE = "https://www.guerrillamail.com/ajax.php"
 GUERRILLAMAIL_PREFIX = "guerrillamail.com"
 
 # Domains available from Guerrilla Mail
@@ -30,11 +29,12 @@ _GUERRILLA_DOMAINS = [
 async def create_mailbox(provider: str, log_fn: LogFn | None = None) -> Mailbox:
     """Create a new Guerrilla Mail inbox (no API key needed)."""
     _log = log_fn or _tprint
+    base_url = get_guerrillamail_base()
 
     # Get email address - Guerrilla Mail creates session automatically
     response = await request_with_retry(
         "GET",
-        GUERRILLAMAIL_BASE,
+        base_url,
         params={
             "f": "get_email_address",
             "ip": "1.1.1.1",  # Dummy IP (required param)
@@ -63,7 +63,7 @@ async def create_mailbox(provider: str, log_fn: LogFn | None = None) -> Mailbox:
         email=email,
         token=sid_token,  # Store sid_token for session management
         account_id=email_user,  # Store email username
-        base_url=GUERRILLAMAIL_BASE,
+        base_url=base_url,
         provider="guerrillamail.com",
         api_key="",  # No API key needed
     )
@@ -82,7 +82,7 @@ async def get_messages(box: Mailbox) -> list[dict]:
 
     response = await request_with_retry(
         "GET",
-        GUERRILLAMAIL_BASE,
+        box.base_url,
         params=params,
         provider_name="guerrillamail.com",
         timeout=15,
@@ -121,7 +121,7 @@ async def get_message_body(box: Mailbox, message_id: str) -> dict:
 
     response = await request_with_retry(
         "GET",
-        GUERRILLAMAIL_BASE,
+        box.base_url,
         params=params,
         provider_name="guerrillamail.com",
         timeout=15,
@@ -196,7 +196,7 @@ async def extend_email_lifetime(box: Mailbox) -> bool:
 
     response = await request_with_retry(
         "GET",
-        GUERRILLAMAIL_BASE,
+        box.base_url,
         params=params,
         provider_name="guerrillamail.com",
         timeout=15,

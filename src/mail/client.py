@@ -21,9 +21,9 @@ from collections.abc import Sequence
 
 
 from ._base import (
-    MAIL_TM_BASES, LogFn, MailCfg, Mailbox, _tprint,
+    LogFn, MailCfg, Mailbox, _tprint,
     provider_display_name, provider_kind,
-    _DEFAULT_COOLDOWN_SEC, _DEFAULT_MAX_CONSECUTIVE_FAILS,
+    get_mail_tm_bases,
 )
 from .providers import mail_tm, mailslurp_com, testmail_app, guerrillamail_com, mailosaur_com, gmail, sms_webhook
 from .providers import aar_adapter
@@ -58,17 +58,19 @@ def _is_provider_down(provider: str) -> bool:
 
 def _mark_provider_fail(
     provider: str,
-    cooldown_sec: int = _DEFAULT_COOLDOWN_SEC,
-    max_fails: int = _DEFAULT_MAX_CONSECUTIVE_FAILS,
+    cooldown_sec: int | None = None,
+    max_fails: int | None = None,
     log_fn: LogFn | None = None,
 ) -> None:
+    _cooldown = cooldown_sec if cooldown_sec is not None else 120
+    _max_fails = max_fails if max_fails is not None else 3
     _log = log_fn or _tprint
     count = _provider_fail_counts.get(provider, 0) + 1
     _provider_fail_counts[provider] = count
-    if count >= max_fails:
-        _provider_cooldown_until[provider] = time.monotonic() + cooldown_sec
+    if count >= _max_fails:
+        _provider_cooldown_until[provider] = time.monotonic() + _cooldown
         label = provider_display_name(provider)
-        _log(f"  [mail] {label} fail {count} lan lien tiep -> cooldown {cooldown_sec}s")
+        _log(f"  [mail] {label} fail {count} lan lien tiep -> cooldown {_cooldown}s")
 
 
 def _mark_provider_ok(provider: str) -> None:
@@ -82,7 +84,7 @@ _round_robin_counter = itertools.count()
 
 
 def _normalize_providers(providers: Sequence[str] | None) -> tuple[str, ...]:
-    source = MAIL_TM_BASES if providers is None else providers
+    source = get_mail_tm_bases() if providers is None else providers
     items = tuple(str(p).rstrip("/") for p in source if str(p).strip())
     unique = tuple(dict.fromkeys(items))
     if not unique:

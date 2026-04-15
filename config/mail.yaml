@@ -7,3 +7,28 @@ mail:
   poll_interval_sec: 5
   max_retries: 3
   retry_max_delay_sec: 30
+  # Provider base URLs
+  mail_tm_bases:
+    - "https://api.mail.tm"
+  mailslurp_base_url: "https://api.mailslurp.com"
+  testmail_base_url: "https://api.testmail.app"
+  mailosaur_base_url: "https://mailosaur.com/api"
+  guerrillamail_base_url: "https://www.guerrillamail.com/ajax.php"
+  # Gmail Playwright timeouts
+  gmail_base_url: "https://mail.google.com"
+  gmail_inbox_url: "https://mail.google.com/mail/u/0/#inbox"
+  gmail_search_url_template: "https://mail.google.com/mail/u/0/#search/{query}"
+  gmail_page_load_timeout_ms: 30000
+  gmail_dom_render_wait_ms: 4000
+  gmail_selector_wait_ms: 15000
+  gmail_poll_interval_sec: 12
+  # SMS webhook
+  sms_store_cap: 500
+  # AAR adapter
+  aar_poll_interval_sec: 3
+
+cors_origins:
+  - http://localhost:1420
+  - http://localhost:1421
+  - tauri://localhost
+  - https://tauri.localhost

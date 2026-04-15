@@ -29,7 +29,7 @@ import time
 import urllib.parse
 from typing import TypedDict
 
-from .._base import LogFn, Mailbox, _tprint
+from .._base import LogFn, Mailbox, _tprint, _get_mail_cfg
 
 
 class GmailMessage(TypedDict):
@@ -40,9 +40,10 @@ class GmailMessage(TypedDict):
     unread: bool
 
 _PROVIDER   = "gmail.com"
-_GMAIL_BASE = "https://mail.google.com"
-_INBOX_URL  = "https://mail.google.com/mail/u/0/#inbox"
-_SEARCH_URL = "https://mail.google.com/mail/u/0/#search/{query}"
+
+
+def _get_gmail_cfg():
+    return _get_mail_cfg()
 
 # CSS selectors cho Gmail web UI
 _EXTRACT_ROWS_JS = """() => {
@@ -75,11 +76,12 @@ def make_mailbox(
     totp_secret: str = "",
 ) -> Mailbox:
     """Tao Mailbox tu Gmail address + google_auth_state JSON (Playwright storage_state)."""
+    cfg = _get_gmail_cfg()
     return Mailbox(
         email=email,
         token=google_auth_state,
         account_id="",
-        base_url=_GMAIL_BASE,
+        base_url=cfg.gmail_base_url,
         provider=_PROVIDER,
         password=password,
         totp_secret=totp_secret,
@@ -135,9 +137,10 @@ async def get_messages(box: Mailbox, unread_only: bool = False) -> list[GmailMes
     Lay danh sach emails tu Gmail inbox.
     Scrape Gmail web UI (tr.zA DOM rows) qua Camoufox headless.
     """
+    cfg = _get_gmail_cfg()
     async with _gmail_ctx(box) as page:
-        await page.goto(_INBOX_URL, wait_until="domcontentloaded", timeout=30_000)
-        await page.wait_for_timeout(4_000)
+        await page.goto(cfg.gmail_inbox_url, wait_until="domcontentloaded", timeout=cfg.gmail_page_load_timeout_ms)
+        await page.wait_for_timeout(cfg.gmail_dom_render_wait_ms)
         _check_logged_in(page.url)
         rows: list[GmailMessage] = await page.evaluate(_EXTRACT_ROWS_JS)
 
@@ -149,10 +152,11 @@ async def search_messages(box: Mailbox, query: str) -> list[GmailMessage]:
     Lay emails khop Gmail search query.
     Vi du: query="from:noreply@elevenlabs.io" hoac "subject:verify"
     """
-    url = _SEARCH_URL.format(query=urllib.parse.quote(query))
+    cfg = _get_gmail_cfg()
+    url = cfg.gmail_search_url_template.format(query=urllib.parse.quote(query))
     async with _gmail_ctx(box) as page:
-        await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
-        await page.wait_for_timeout(4_000)
+        await page.goto(url, wait_until="domcontentloaded", timeout=cfg.gmail_page_load_timeout_ms)
+        await page.wait_for_timeout(cfg.gmail_dom_render_wait_ms)
         _check_logged_in(page.url)
         rows: list[GmailMessage] = await page.evaluate(_EXTRACT_ROWS_JS)
         return rows
@@ -163,8 +167,9 @@ async def get_message_body(box: Mailbox, message_id: str) -> str:
     Mo email theo jsthread ID va lay noi dung HTML.
     message_id: gia tri jsthread tu get_messages() (vi du ":2w").
     """
+    cfg = _get_gmail_cfg()
     async with _gmail_ctx(box) as page:
-        await page.goto(_INBOX_URL, wait_until="domcontentloaded", timeout=30_000)
+        await page.goto(cfg.gmail_inbox_url, wait_until="domcontentloaded", timeout=cfg.gmail_page_load_timeout_ms)
         await page.wait_for_timeout(3_000)
         _check_logged_in(page.url)
 
@@ -179,7 +184,7 @@ async def get_message_body(box: Mailbox, message_id: str) -> str:
         if not clicked:
             raise RuntimeError(f"Khong tim thay email voi jsthread={message_id!r} trong inbox")
 
-        await page.wait_for_selector(".ii.gt", timeout=15_000)
+        await page.wait_for_selector(".ii.gt", timeout=cfg.gmail_selector_wait_ms)
         body = await page.evaluate(_EXTRACT_BODY_JS)
 
     if body is None:

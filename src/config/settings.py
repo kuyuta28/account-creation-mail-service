@@ -169,6 +169,24 @@ class MailConfig:
     poll_interval_sec: int = 5
     max_retries: int = 3
     retry_max_delay_sec: int = 30
+    # Provider base URLs
+    mail_tm_bases: tuple[str, ...] = field(default_factory=lambda: ("https://api.mail.tm",))
+    mailslurp_base_url: str = "https://api.mailslurp.com"
+    testmail_base_url: str = "https://api.testmail.app"
+    mailosaur_base_url: str = "https://mailosaur.com/api"
+    guerrillamail_base_url: str = "https://www.guerrillamail.com/ajax.php"
+    # Gmail Playwright timeouts
+    gmail_base_url: str = "https://mail.google.com"
+    gmail_inbox_url: str = "https://mail.google.com/mail/u/0/#inbox"
+    gmail_search_url_template: str = "https://mail.google.com/mail/u/0/#search/{query}"
+    gmail_page_load_timeout_ms: int = 30_000
+    gmail_dom_render_wait_ms: int = 4_000
+    gmail_selector_wait_ms: int = 15_000
+    gmail_poll_interval_sec: int = 12
+    # SMS webhook
+    sms_store_cap: int = 500
+    # AAR adapter
+    aar_poll_interval_sec: int = 3
 
     @property
     def all_providers(self) -> tuple[str, ...]:
@@ -498,6 +516,8 @@ def _parse_mail(raw: dict, db_path: Path) -> MailConfig:
     """Parse MailConfig from YAML dict.
     db_path is injected programmatically — not from YAML.
     Note: auto-seeding providers is done in seed_mail_providers(), not here."""
+    mail_tm_raw = raw.get("mail_tm_bases", ["https://api.mail.tm"])
+    mail_tm_bases = tuple(str(b) for b in mail_tm_raw) if isinstance(mail_tm_raw, list) else (str(mail_tm_raw),)
     return MailConfig(
         cooldown_sec=int(_strict(raw, "cooldown_sec", "mail")),
         max_consecutive_fails=int(_strict(raw, "max_consecutive_fails", "mail")),
@@ -508,6 +528,20 @@ def _parse_mail(raw: dict, db_path: Path) -> MailConfig:
         poll_interval_sec=int(raw.get("poll_interval_sec", 5)),
         max_retries=int(raw.get("max_retries", 3)),
         retry_max_delay_sec=int(raw.get("retry_max_delay_sec", 30)),
+        mail_tm_bases=mail_tm_bases,
+        mailslurp_base_url=str(raw.get("mailslurp_base_url", "https://api.mailslurp.com")),
+        testmail_base_url=str(raw.get("testmail_base_url", "https://api.testmail.app")),
+        mailosaur_base_url=str(raw.get("mailosaur_base_url", "https://mailosaur.com/api")),
+        guerrillamail_base_url=str(raw.get("guerrillamail_base_url", "https://www.guerrillamail.com/ajax.php")),
+        gmail_base_url=str(raw.get("gmail_base_url", "https://mail.google.com")),
+        gmail_inbox_url=str(raw.get("gmail_inbox_url", "https://mail.google.com/mail/u/0/#inbox")),
+        gmail_search_url_template=str(raw.get("gmail_search_url_template", "https://mail.google.com/mail/u/0/#search/{query}")),
+        gmail_page_load_timeout_ms=int(raw.get("gmail_page_load_timeout_ms", 30_000)),
+        gmail_dom_render_wait_ms=int(raw.get("gmail_dom_render_wait_ms", 4_000)),
+        gmail_selector_wait_ms=int(raw.get("gmail_selector_wait_ms", 15_000)),
+        gmail_poll_interval_sec=int(raw.get("gmail_poll_interval_sec", 12)),
+        sms_store_cap=int(raw.get("sms_store_cap", 500)),
+        aar_poll_interval_sec=int(raw.get("aar_poll_interval_sec", 3)),
     )
 
 

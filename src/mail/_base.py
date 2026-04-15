@@ -24,26 +24,38 @@ def _tprint(msg: str) -> None:
 
 # ── Provider prefix constants ─────────────────────────────────────────────────
 
-MAIL_TM_BASES = ("https://api.mail.tm",)
-MAILSLURP_BASE = "https://api.mailslurp.com"
 MAILSLURP_PREFIX = "mailslurp.com:"
-TESTMAIL_BASE = "https://api.testmail.app"
 TESTMAIL_PREFIX = "testmail.app:"
 GUERRILLAMAIL_PREFIX = "guerrillamail.com"
-MAILOSAUR_BASE = "https://mailosaur.com/api"
 MAILOSAUR_PREFIX = "mailosaur.com:"
 GMAIL_PREFIX = "gmail.com"
 SMS_WEBHOOK_PREFIX = "sms.webhook:"
 AAR_PREFIX = "aar:"
 _RETRYABLE = {429, 500, 502, 503, 504}
 
-_DEFAULT_HTTP_TIMEOUT_SEC = 15
-_DEFAULT_WAIT_TIMEOUT_SEC = 120
-_DEFAULT_POLL_INTERVAL_SEC = 5
-_DEFAULT_MAX_RETRIES = 3
-_DEFAULT_RETRY_MAX_DELAY_SEC = 30
-_DEFAULT_COOLDOWN_SEC = 120
-_DEFAULT_MAX_CONSECUTIVE_FAILS = 3
+
+def _get_mail_cfg():
+    """Lazily load MailConfig — tránh circular import."""
+    from ..config.settings import load_config
+    return load_config().mail
+
+
+# ── Convenience accessors (read from config) ────────────────────────────────
+
+def get_mail_tm_bases() -> tuple[str, ...]:
+    return _get_mail_cfg().mail_tm_bases
+
+def get_mailslurp_base() -> str:
+    return _get_mail_cfg().mailslurp_base_url
+
+def get_testmail_base() -> str:
+    return _get_mail_cfg().testmail_base_url
+
+def get_mailosaur_base() -> str:
+    return _get_mail_cfg().mailosaur_base_url
+
+def get_guerrillamail_base() -> str:
+    return _get_mail_cfg().guerrillamail_base_url
 
 
 # ── Dataclasses ───────────────────────────────────────────────────────────────
@@ -51,8 +63,8 @@ _DEFAULT_MAX_CONSECUTIVE_FAILS = 3
 @dataclass(frozen=True)
 class MailCfg:
     """Immutable mail config — truyền vào create_mailbox() thay vì dùng global setter."""
-    cooldown_sec: int = _DEFAULT_COOLDOWN_SEC
-    max_consecutive_fails: int = _DEFAULT_MAX_CONSECUTIVE_FAILS
+    cooldown_sec: int = 120
+    max_consecutive_fails: int = 3
 
 
 @dataclass(frozen=True)
@@ -120,42 +132,45 @@ def provider_kind(provider: str) -> str:
 
 # ── HTTP helper ───────────────────────────────────────────────────────────────
 
-def _retry_delay(response: httpx.Response | None, attempt: int, max_delay: int = _DEFAULT_RETRY_MAX_DELAY_SEC) -> int:
+def _retry_delay(response: httpx.Response | None, attempt: int, max_delay: int | None = None) -> int:
+    _max_delay = max_delay if max_delay is not None else _get_mail_cfg().retry_max_delay_sec
     if response is not None:
         retry_after = response.headers.get("Retry-After", "").strip()
         if retry_after.isdigit():
             return max(1, int(retry_after))
-    return min(max_delay, 2 ** (attempt - 1) * 5)
+    return min(_max_delay, 2 ** (attempt - 1) * 5)
 
 
 async def request_with_retry(
-    method: str, url: str, provider_name: str = "", max_retries: int = _DEFAULT_MAX_RETRIES,
+    method: str, url: str, provider_name: str = "", max_retries: int | None = None,
     log_fn: LogFn | None = None,
     retryable_codes: frozenset[int] | None = None,
-    retry_max_delay: int = _DEFAULT_RETRY_MAX_DELAY_SEC,
+    retry_max_delay: int | None = None,
     **kwargs,
 ) -> httpx.Response:
+    _max_retries = max_retries if max_retries is not None else _get_mail_cfg().max_retries
+    _retry_max_delay = retry_max_delay if retry_max_delay is not None else _get_mail_cfg().retry_max_delay_sec
     _log = log_fn or _tprint
     _codes = retryable_codes if retryable_codes is not None else _RETRYABLE
     last_response: httpx.Response | None = None
     label = provider_name or url.rsplit("/", 1)[-1]
     async with httpx.AsyncClient() as client:
-        for attempt in range(1, max_retries + 1):
+        for attempt in range(1, _max_retries + 1):
             try:
                 response = await client.request(method, url, **kwargs)
             except (httpx.ConnectError, httpx.TimeoutException) as exc:
-                delay = min(retry_max_delay, 2 ** (attempt - 1) * 5)
-                _log(f"  [mail] {label} -> network error (attempt {attempt}/{max_retries}): {exc}")
-                if attempt < max_retries:
+                delay = min(_retry_max_delay, 2 ** (attempt - 1) * 5)
+                _log(f"  [mail] {label} -> network error (attempt {attempt}/{_max_retries}): {exc}")
+                if attempt < _max_retries:
                     await asyncio.sleep(delay)
                     continue
-                raise RuntimeError(f"{label} network error after {max_retries} attempts: {exc}") from exc
+                raise RuntimeError(f"{label} network error after {_max_retries} attempts: {exc}") from exc
             if response.status_code not in _codes:
                 return response
             last_response = response
-            delay = _retry_delay(response, attempt, max_delay=retry_max_delay)
-            _log(f"  [mail] {label} -> {response.status_code} (attempt {attempt}/{max_retries}), waiting {delay}s...")
-            if attempt < max_retries:
+            delay = _retry_delay(response, attempt, max_delay=_retry_max_delay)
+            _log(f"  [mail] {label} -> {response.status_code} (attempt {attempt}/{_max_retries}), waiting {delay}s...")
+            if attempt < _max_retries:
                 await asyncio.sleep(delay)
     assert last_response is not None
     return last_response

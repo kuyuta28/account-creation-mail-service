@@ -21,15 +21,18 @@ import asyncio
 import time
 from typing import TypedDict
 
-from .._base import LogFn, Mailbox, _tprint
+from .._base import LogFn, Mailbox, _tprint, _get_mail_cfg
 
 _PROVIDER = "sms.webhook"
 
 # ── In-memory SMS store per phone number ─────────────────────────────────────
-# phone_number (normalized) → list[SmsMessage] (capped tại 500 entries)
+# phone_number (normalized) → list[SmsMessage] (capped tại sms_store_cap entries)
 _SMS_STORE:  dict[str, list[SmsMessage]] = {}
 _SMS_EVENTS: dict[str, asyncio.Event] = {}       # wakeup event khi có SMS mới
-_STORE_CAP = 500
+
+
+def _store_cap() -> int:
+    return _get_mail_cfg().sms_store_cap
 
 
 class SmsMessage(TypedDict):
@@ -79,9 +82,10 @@ def push_sms(phone_number: str, from_: str, text: str, sent_stamp: int = 0) -> N
 
     store = _SMS_STORE[key]
     store.append(msg)
-    if len(store) > _STORE_CAP:
+    cap = _store_cap()
+    if len(store) > cap:
         # Trim oldest
-        _SMS_STORE[key] = store[-_STORE_CAP:]
+        _SMS_STORE[key] = store[-cap:]
 
     # Wake up any waiter
     event = _SMS_EVENTS.get(key)
