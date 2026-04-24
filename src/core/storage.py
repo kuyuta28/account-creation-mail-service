@@ -98,8 +98,23 @@ def service_accounts_path(base_dir: Path, service: str) -> Path:
     return base_dir / "data" / f"{service.lower()}_accounts.json"
 
 
-def db_path(base_dir: Path) -> Path:
-    return base_dir / "data" / "accounts.db"
+def db_path(base_dir: Path, env: str | None = None) -> Path:
+    """Return accounts DB path for environment.
+
+    - prod: data/accounts.db
+    - dev:  data/accounts_dev.db
+    - test: data/accounts_test.db
+    """
+    # Import at runtime to avoid circular imports and support testing
+    try:
+        from common.env import APP_ENV
+        target_env = env or APP_ENV
+    except ImportError:
+        target_env = env or "prod"
+
+    if target_env == "prod":
+        return base_dir / "data" / "accounts.db"
+    return base_dir / "data" / f"accounts_{target_env}.db"
 
 
 def auth_export_dir(base_dir: Path) -> Path:

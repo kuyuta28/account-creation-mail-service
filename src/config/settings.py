@@ -142,16 +142,6 @@ class KlingAIConfig:
 
 
 @dataclass(frozen=True)
-class TwoSlidesConfig:
-    login_url: str = "https://2slides.com/login"
-    api_url: str = "https://2slides.com/api"
-    app_url_contains: str = "2slides.com"
-    otp_wait_sec: int = 120
-    otp_poll_interval: int = 4
-    post_submit_wait_ms: int = 3_000
-
-
-@dataclass(frozen=True)
 class TestmailConfig:
     otp_wait_sec: int = 90
     otp_poll_interval: int = 5
@@ -360,7 +350,6 @@ class AppConfig:
     gmail_variations: GmailVariationsConfig = field(default_factory=GmailVariationsConfig)
     leonardo: LeonardoConfig = field(default_factory=LeonardoConfig)
     klingai: KlingAIConfig = field(default_factory=KlingAIConfig)
-    twoslides: TwoSlidesConfig = field(default_factory=TwoSlidesConfig)
     testmail: TestmailConfig = field(default_factory=TestmailConfig)
     mail: MailConfig = field(default_factory=MailConfig)
     auth_sync: AuthSyncConfig = field(default_factory=AuthSyncConfig)
@@ -561,7 +550,6 @@ _CONFIG_FILES = (
     "chatgpt.yaml",
     "leonardo.yaml",
     "klingai.yaml",
-    "twoslides.yaml",
     "testmail.yaml",
     "artificialanalysis.yaml",
     "sentry.yaml",
@@ -596,7 +584,14 @@ def load_config(path: Path | None = None) -> AppConfig:
         # path có thể là file hoặc folder: nếu là file thì lấy parent của parent (project root)
         base_dir = path.parent if path.is_dir() else path.parent.parent if path.parent.name == _CONFIG_DIR_NAME else path.parent
     raw = _load_raw(base_dir)
-    db_path = base_dir / "data" / "accounts.db"
+
+    # Resolve APP_ENV and DB path
+    try:
+        from common.env import APP_ENV, mail_db_path as _resolve_mail_db_path
+        db_path = _resolve_mail_db_path(APP_ENV)
+    except ImportError:
+        db_path = base_dir / "mail-service" / "data" / "mail.db"
+
     browser_raw = _require_section(raw, "browser")
     return AppConfig(
         log=_parse_log(_require_section(raw, "log")),
@@ -616,7 +611,6 @@ def load_config(path: Path | None = None) -> AppConfig:
         gmail_variations=_parse_gmail_variations(_require_section(raw, "gmail_variations")),
         leonardo=_parse_section_strict(LeonardoConfig, _require_section(raw, "leonardo"), "leonardo"),
         klingai=_parse_section_strict(KlingAIConfig, _require_section(raw, "klingai"), "klingai"),
-        twoslides=_parse_section_strict(TwoSlidesConfig, _require_section(raw, "twoslides"), "twoslides"),
         testmail=_parse_section_strict(TestmailConfig, _require_section(raw, "testmail"), "testmail"),
         mail=_parse_mail(_require_section(raw, "mail"), db_path),
         auth_sync=_parse_auth_sync(_require_section(raw, "auth_sync")),
