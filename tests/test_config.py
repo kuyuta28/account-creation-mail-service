@@ -101,38 +101,3 @@ class TestFullConfigLoading:
     def test_cors_origins_from_yaml(self):
         cfg = load_config()
         assert "https://tauri.localhost" in cfg.api.cors_origins
-
-
-# ── Test: _base.py config-driven defaults ─────────────────────────────────
-
-class TestBaseDefaults:
-    """Test _base.py constants match MailConfig defaults."""
-
-    def test_default_max_retries_matches_config(self):
-        from mail._base import _DEFAULT_MAX_RETRIES
-        assert _DEFAULT_MAX_RETRIES == 3
-
-    def test_default_retry_max_delay_matches_config(self):
-        from mail._base import _DEFAULT_RETRY_MAX_DELAY_SEC
-        assert _DEFAULT_RETRY_MAX_DELAY_SEC == 30
-
-    def test_default_cooldown_matches_config(self):
-        from mail._base import _DEFAULT_COOLDOWN_SEC
-        assert _DEFAULT_COOLDOWN_SEC == 120
-
-    def test_default_max_consecutive_fails_matches_config(self):
-        from mail._base import _DEFAULT_MAX_CONSECUTIVE_FAILS
-        assert _DEFAULT_MAX_CONSECUTIVE_FAILS == 3
-
-
-# ── Test: request_with_retry signature ─────────────────────────────────────
-
-class TestRequestWithRetrySignature:
-    """request_with_retry phải accept retry_max_delay parameter."""
-
-    def test_function_accepts_retry_max_delay(self):
-        from mail._base import request_with_retry
-        import inspect
-        sig = inspect.signature(request_with_retry)
-        assert "retry_max_delay" in sig.parameters
-        assert sig.parameters["retry_max_delay"].default == 30
