@@ -16,7 +16,6 @@ from __future__ import annotations
 import asyncio
 import itertools
 import re
-import time
 from collections.abc import Sequence
 
 
@@ -27,6 +26,7 @@ from ._base import (
 )
 from .providers import mail_tm, mailslurp_com, testmail_app, guerrillamail_com, mailosaur_com, gmail, sms_webhook
 from .providers import aar_adapter
+from .circuit_breaker import CircuitBreakerConfig, CircuitBreakerState
 
 __all__ = [
     "LogFn",
@@ -40,42 +40,14 @@ __all__ = [
     "wait_for_message",
 ]
 
-# ── Circuit breaker state (intentional module-level mutable) ─────────────────
-_provider_fail_counts: dict[str, int] = {}
-_provider_cooldown_until: dict[str, float] = {}
 
-
-def _is_provider_down(provider: str) -> bool:
-    deadline = _provider_cooldown_until.get(provider)
-    if deadline is None:
-        return False
-    if time.monotonic() >= deadline:
-        _provider_cooldown_until.pop(provider, None)
-        _provider_fail_counts.pop(provider, None)
-        return False
-    return True
-
-
-def _mark_provider_fail(
-    provider: str,
-    cooldown_sec: int | None = None,
-    max_fails: int | None = None,
-    log_fn: LogFn | None = None,
-) -> None:
-    _cooldown = cooldown_sec if cooldown_sec is not None else 120
-    _max_fails = max_fails if max_fails is not None else 3
-    _log = log_fn or _tprint
-    count = _provider_fail_counts.get(provider, 0) + 1
-    _provider_fail_counts[provider] = count
-    if count >= _max_fails:
-        _provider_cooldown_until[provider] = time.monotonic() + _cooldown
-        label = provider_display_name(provider)
-        _log(f"  [mail] {label} fail {count} lan lien tiep -> cooldown {_cooldown}s")
-
-
-def _mark_provider_ok(provider: str) -> None:
-    _provider_fail_counts.pop(provider, None)
-    _provider_cooldown_until.pop(provider, None)
+def _get_circuit_breaker() -> CircuitBreakerState:
+    """Read CircuitBreakerState from app context."""
+    from common.context import get_app_context
+    ctx = get_app_context()
+    if ctx.mail_state is None:
+        raise RuntimeError("mail_state not initialized in AppContext")
+    return ctx.mail_state
 
 
 # ── Provider routing ──────────────────────────────────────────────────────────
@@ -152,36 +124,34 @@ async def create_mailbox(
     if not all_providers:
         raise RuntimeError("No usable temp mail providers configured")
 
-    alive = [p for p in all_providers if not _is_provider_down(p)]
-    down  = [p for p in all_providers if _is_provider_down(p)]
+    cb = _get_circuit_breaker()
+
+    alive = [p for p in all_providers if not cb.is_down(p)]
+    down  = [p for p in all_providers if cb.is_down(p)]
 
     for provider in alive:
         label = provider_display_name(provider)
         try:
             mailbox = await _create_mailbox_on_provider(provider, log_fn=log_fn)
-            _mark_provider_ok(provider)
+            cb.mark_ok(provider)
             _log(f"Temp mail ({label}): {mailbox.email}")
             return mailbox
         except Exception as exc:  # noqa: BLE001 — batch collector: per-item error isolation
-            _mark_provider_fail(provider, cfg.cooldown_sec, cfg.max_consecutive_fails, log_fn=log_fn)
+            triggered = cb.mark_fail(provider, log_fn=log_fn)
             errors.append(f"{label}: {exc}")
-            count = _provider_fail_counts.get(provider, 0)
-            if count < cfg.max_consecutive_fails:
-                _log(f"  [mail] {label} fail ({count}/{cfg.max_consecutive_fails}), swap provider...")
+            if not triggered:
+                _log(f"  [mail] {label} fail -> swap provider...")
 
     if down:
-        earliest_deadline = min(_provider_cooldown_until[p] for p in down if p in _provider_cooldown_until)
-        wait = max(1, earliest_deadline - time.monotonic())
-        await asyncio.sleep(wait)
+        await asyncio.sleep(1)  # brief wait then retry down providers
         return await create_mailbox(providers, cfg, log_fn=log_fn)
 
-    if any(not _is_provider_down(p) for p in all_providers):
+    if any(not cb.is_down(p) for p in all_providers):
         return await create_mailbox(providers, cfg, log_fn=log_fn)
 
-    if _provider_cooldown_until:
-        earliest_deadline = min(_provider_cooldown_until.values())
-        wait = max(1, earliest_deadline - time.monotonic())
-        await asyncio.sleep(wait)
+    stats = cb.get_stats()
+    if stats["cooldown_providers"]:
+        await asyncio.sleep(1)
         return await create_mailbox(providers, cfg, log_fn=log_fn)
 
     raise RuntimeError("All temp mail providers failed: " + " | ".join(errors))
