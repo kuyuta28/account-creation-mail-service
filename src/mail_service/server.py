@@ -19,6 +19,7 @@ from common.database._engine import init_async_db
 from common.middleware import add_request_id_middleware, add_tracing_middleware
 from common.tracing import init_tracing
 from mail.mail.circuit_breaker import CircuitBreakerState
+from .services.mailbox_store import MailboxStore
 
 
 _cfg = load_config()
@@ -26,9 +27,10 @@ _cors_origins = list(_cfg.api.cors_origins)
 
 # Init state managers
 mail_state = CircuitBreakerState()
+mailbox_store = MailboxStore()
 
 # Set app context before creating FastAPI app so lifespan_context can access it
-init_app_context(config=_cfg, db_engine=None, mail_state=mail_state)
+init_app_context(config=_cfg, db_engine=None, mail_state=mail_state, mailbox_store=mailbox_store)
 
 app = FastAPI(
     title="Mail Service",

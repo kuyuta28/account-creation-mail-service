@@ -1,24 +1,28 @@
 """
 mailbox_service.py — In-memory temp mailbox management for manual use.
-FP style: module-level state + pure async functions.
+Uses MailboxStore for structured state management.
 """
 from __future__ import annotations
 
 import re
-import time
 from typing import Any
 
 from ...mail.client import (
-    Mailbox,
     create_mailbox,
     get_message_body,
     get_messages,
 )
+from ...context import get_app_context
 
-# ── In-memory store ───────────────────────────────────────────────────
+from .mailbox_store import MailboxStore
 
-_active_boxes: dict[str, Mailbox] = {}          # email -> Mailbox
-_created_at: dict[str, float] = {}              # email -> timestamp
+
+def _get_mailbox_store() -> MailboxStore:
+    """Get MailboxStore from app context."""
+    store = get_app_context().mailbox_store
+    if store is None:
+        raise RuntimeError("MailboxStore not initialized in app context")
+    return store
 
 
 async def create_new_mailbox(provider: str | None = None) -> dict[str, Any]:
@@ -52,37 +56,26 @@ async def create_new_mailbox(provider: str | None = None) -> dict[str, Any]:
         providers = list(all_p) if all_p else None
 
     box = await create_mailbox(providers)
-    _active_boxes[box.email] = box
-    _created_at[box.email] = time.time()
-    return {
-        "email": box.email,
-        "provider": box.provider,
-        "created_at": _created_at[box.email],
-    }
+    store = _get_mailbox_store()
+    store.add(box)
+    result = store.list_active()[-1]  # get the just-added entry
+    return result
 
 
 def list_active_mailboxes() -> list[dict[str, Any]]:
     """List all active mailboxes."""
-    return [
-        {
-            "email": email,
-            "provider": box.provider,
-            "created_at": _created_at.get(email, 0),
-        }
-        for email, box in _active_boxes.items()
-    ]
+    return _get_mailbox_store().list_active()
 
 
 def remove_mailbox(email: str) -> bool:
     """Remove a mailbox from active list."""
-    removed = _active_boxes.pop(email, None)
-    _created_at.pop(email, None)
-    return removed is not None
+    return _get_mailbox_store().remove(email)
 
 
 async def fetch_messages(email: str) -> list[dict[str, Any]]:
     """Fetch all messages for an active mailbox."""
-    box = _active_boxes.get(email)
+    store = _get_mailbox_store()
+    box = store.get(email)
     if not box:
         raise KeyError(f"Mailbox {email} not found")
 
@@ -173,7 +166,8 @@ def _html_to_text(html: str) -> str:
 
 async def fetch_message_detail(email: str, message_id: str) -> dict[str, Any]:
     """Fetch full body of a specific message."""
-    box = _active_boxes.get(email)
+    store = _get_mailbox_store()
+    box = store.get(email)
     if not box:
         raise KeyError(f"Mailbox {email} not found")
 
