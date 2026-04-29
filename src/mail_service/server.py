@@ -18,7 +18,7 @@ from common.context import init_app_context, lifespan_context
 from common.database._engine import init_async_db
 from common.middleware import add_request_id_middleware, add_tracing_middleware
 from common.tracing import init_tracing
-from mail.mail.circuit_breaker import CircuitBreakerState
+from ..mail.circuit_breaker import CircuitBreakerState
 from .services.mailbox_store import MailboxStore
 
 

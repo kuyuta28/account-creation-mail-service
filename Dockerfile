@@ -29,7 +29,7 @@ EXPOSE 8701
 
 ENV MAIL_HOST=0.0.0.0
 ENV MAIL_PORT=8701
-ENV PYTHONPATH=/app/common/src
+ENV PYTHONPATH=/app/common/src:/app/src
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD wget -qO- http://localhost:8701/api/health || exit 1

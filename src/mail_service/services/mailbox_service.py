@@ -12,7 +12,7 @@ from ...mail.client import (
     get_message_body,
     get_messages,
 )
-from ...context import get_app_context
+from common.context import get_app_context
 
 from .mailbox_store import MailboxStore
 

@@ -2,7 +2,7 @@
 Tests for CircuitBreakerState.
 """
 import pytest
-from mail_service.src.mail.circuit_breaker import CircuitBreakerState, CircuitBreakerConfig
+from mail.circuit_breaker import CircuitBreakerState, CircuitBreakerConfig
 
 
 @pytest.fixture
