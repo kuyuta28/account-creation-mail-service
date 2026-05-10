@@ -1,6 +1,8 @@
 # mail-service
 
-Mail inbox management service. Cung cấp mailbox tạm thời để nhận email xác minh. Chạy ở port 8801.
+Mail inbox management service. Cung cấp mailbox tạm thời để nhận email xác minh.
+
+> Runtime note: root orchestration publishes `mail-service` on port `8701`. Older service-local examples that mention `8801` are legacy local-dev references and must not be used as platform runtime truth.
 
 **Stack**: FastAPI · aioimaplib · Playwright · SQLAlchemy · Pydantic
 
