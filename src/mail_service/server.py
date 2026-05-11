@@ -39,6 +39,10 @@ async def lifespan(_app: FastAPI):
     """Mail service lifespan — init → yield dict → shutdown."""
     ctx = get_app_context()
 
+    db_url = os.getenv("DATABASE_URL")
+    if db_url:
+        init_async_db(db_url)
+
     # Startup: init all state managers
     if ctx.mail_state:
         await ctx.mail_state.init()
@@ -85,11 +89,3 @@ app.include_router(sms.router, prefix="/api/v1")
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "service": "mail-service"}
-
-
-@app.on_event("startup")
-async def _startup():
-    # Init async PostgreSQL if DATABASE_URL is set
-    db_url = os.getenv("DATABASE_URL")
-    if db_url:
-        init_async_db(db_url)
