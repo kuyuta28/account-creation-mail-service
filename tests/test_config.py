@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 # common path is in conftest.py
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
@@ -47,6 +48,16 @@ class TestMailConfigDefaults:
     def test_default_retryable_codes(self):
         cfg = MailConfig()
         assert cfg.retryable_status_codes == (429, 500, 502, 503, 504)
+
+    def test_providers_for_does_not_swallow_database_errors(self):
+        cfg = MailConfig()
+        with patch("common.database.get_mail_providers", side_effect=RuntimeError("db down")):
+            try:
+                cfg.providers_for("OPENROUTER")
+            except RuntimeError as exc:
+                assert str(exc) == "db down"
+            else:
+                raise AssertionError("providers_for swallowed database error")
 
 
 # ── Test: ApiConfig defaults ──────────────────────────────────────────────
