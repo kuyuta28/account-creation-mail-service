@@ -1,12 +1,7 @@
 """Tests cho mail-service config loading — single source of truth."""
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 from unittest.mock import patch
-
-# common path is in conftest.py
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from config.settings import (
     AppConfig,

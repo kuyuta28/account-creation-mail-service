@@ -5,8 +5,11 @@ import os
 import sys
 from pathlib import Path
 
-# Inject common package path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "common" / "src"))
+REPO_ROOT = Path(__file__).resolve().parent.parent
+WORKSPACE_ROOT = REPO_ROOT.parent
+
+for package_path in (REPO_ROOT / "src", WORKSPACE_ROOT / "common" / "src"):
+    sys.path.insert(0, str(package_path))
 
 # Set APP_ENV=test for isolated test DB (accounts_test.db)
 os.environ["APP_ENV"] = "test"
