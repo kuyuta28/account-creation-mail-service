@@ -12,11 +12,6 @@ import os
 import sys
 from pathlib import Path
 
-# Inject any-auto-register vào sys.path để aar_adapter.py có thể import core.base_mailbox
-_AAR_PATH = Path(__file__).parent / "any-auto-register"
-if _AAR_PATH.exists() and str(_AAR_PATH) not in sys.path:
-    sys.path.insert(0, str(_AAR_PATH))
-
 # Inject common package
 sys.path.insert(0, str(Path(__file__).parent.parent / "common" / "src"))
 
