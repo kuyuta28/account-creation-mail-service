@@ -14,6 +14,7 @@ from ...mail.client import (
 )
 from common.context import get_app_context
 
+from ..providers_client import list_all_providers
 from .mailbox_store import MailboxStore
 
 
@@ -27,10 +28,8 @@ def _get_mailbox_store() -> MailboxStore:
 
 async def create_new_mailbox(provider: str | None = None) -> dict[str, Any]:
     """Create a new temp mailbox using the given provider (or default)."""
-    from ...config.settings import load_config
-    cfg = load_config()
-
-    all_p = cfg.mail.providers_for()  # all active providers from DB
+    rows = await list_all_providers()
+    all_p = tuple(row["connection_str"] for row in rows)
 
     if provider == "mailslurp":
         providers = [p for p in all_p if p.startswith("mailslurp.com:")]

@@ -178,19 +178,6 @@ class MailConfig:
     # AAR adapter
     aar_poll_interval_sec: int = 3
 
-    @property
-    def all_providers(self) -> tuple[str, ...]:
-        return self.providers_for()
-
-    def providers_for(self, service: str = "") -> tuple[str, ...]:
-        """Query DB cho active mail providers. service='' → tất cả. Trả tuple rỗng nếu không có."""
-        from common.database import get_mail_providers
-        rows = get_mail_providers(
-            self.db_path,
-            service_tag=service.lower() if service else None,
-        )
-        return tuple(r["connection_str"] for r in rows)
-
 
 @dataclass(frozen=True)
 class LogConsoleConfig:
@@ -468,37 +455,9 @@ def _parse_cliproxy_sync(raw: dict) -> ClipRoxySyncConfig:
     return _parse_section_strict(ClipRoxySyncConfig, raw, "cliproxy_sync")
 
 
-def _auto_seed_mailslurp_keys(db_path: Path, keys: list[str]) -> None:
-    """Seed mailslurp keys từ yaml vào mail_providers table (idempotent)."""
-    from common.database import upsert_mail_provider, get_mail_providers
-    existing = {r["connection_str"] for r in get_mail_providers(db_path)}
-    for key in keys:
-        if f"mailslurp.com:{key}" not in existing:
-            label = f"mailslurp.com:...{key[-8:]}"
-            upsert_mail_provider(db_path, "mailslurp.com", api_key=key, label=label)
-
-
-def _auto_seed_free_providers(db_path: Path) -> None:
-    """Seed FREE providers (no API key needed): mail.tm, guerrillamail.com."""
-    from common.database import upsert_mail_provider, get_mail_providers
-    existing = {r["connection_str"] for r in get_mail_providers(db_path)}
-    # mail.tm — server_id chứa base URL
-    if "https://api.mail.tm" not in existing:
-        upsert_mail_provider(db_path, "mail.tm", api_key="", server_id="https://api.mail.tm", label="mail.tm")
-    # Guerrilla Mail — không cần key
-    if "guerrillamail.com" not in existing:
-        upsert_mail_provider(db_path, "guerrillamail.com", api_key="", server_id="", label="Guerrilla Mail")
-
-
 def seed_mail_providers(cfg: AppConfig) -> None:
-    """Auto-seed mail providers from config (mailslurp keys + free providers).
-    Call this once at startup, after load_config()."""
-    raw = _load_raw(cfg.base_dir)
-    mail_raw = _require_section(raw, "mail")
-    mailslurp_keys = [str(k).strip() for k in mail_raw.get("mailslurp_api_keys", []) if str(k).strip()]
-    if mailslurp_keys:
-        _auto_seed_mailslurp_keys(cfg.mail.db_path, mailslurp_keys)
-    _auto_seed_free_providers(cfg.mail.db_path)
+    """Mail providers are seeded through PostgreSQL migration/import paths."""
+    return None
 
 
 def _parse_mail(raw: dict, db_path: Path) -> MailConfig:

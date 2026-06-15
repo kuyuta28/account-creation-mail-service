@@ -1,4 +1,4 @@
-﻿# MailSlurp  Nghiên cứu kỹ thuật toàn diện
+# MailSlurp  Nghiên cứu kỹ thuật toàn diện
 
 > Tổng hợp từ: docs.mailslurp.com, github.com/mailslurp/mailslurp-client-python, app.mailslurp.com/pricing
 
