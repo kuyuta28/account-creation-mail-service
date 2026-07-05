@@ -24,7 +24,6 @@ def _tprint(msg: str) -> None:
 
 # ── Provider prefix constants ─────────────────────────────────────────────────
 
-MAILSLURP_PREFIX = "mailslurp.com:"
 TESTMAIL_PREFIX = "testmail.app:"
 GUERRILLAMAIL_PREFIX = "guerrillamail.com"
 MAILOSAUR_PREFIX = "mailosaur.com:"
@@ -44,9 +43,6 @@ def _get_mail_cfg():
 
 def get_mail_tm_bases() -> tuple[str, ...]:
     return _get_mail_cfg().mail_tm_bases
-
-def get_mailslurp_base() -> str:
-    return _get_mail_cfg().mailslurp_base_url
 
 def get_testmail_base() -> str:
     return _get_mail_cfg().testmail_base_url
@@ -96,9 +92,6 @@ def provider_display_name(provider: str) -> str:
     if provider.startswith(AAR_PREFIX):
         aar_name = provider[len(AAR_PREFIX):].split(":")[0]
         return f"aar:{aar_name}"
-    if provider.startswith(MAILSLURP_PREFIX):
-        key_tail = provider[len(MAILSLURP_PREFIX):][-8:]
-        return f"mailslurp.com:...{key_tail}"
     if provider.startswith(TESTMAIL_PREFIX):
         ns = provider[len(TESTMAIL_PREFIX):].partition(":")[0]
         return f"testmail.app:{ns}"
@@ -112,11 +105,9 @@ def provider_display_name(provider: str) -> str:
 
 
 def provider_kind(provider: str) -> str:
-    """Trả về loại provider: 'aar' | 'mailslurp.com' | 'testmail.app' | 'guerrillamail.com' | 'mailosaur.com' | 'gmail.com' | 'mail.tm'."""
+    """Trả về loại provider: 'aar' | 'testmail.app' | 'guerrillamail.com' | 'mailosaur.com' | 'gmail.com' | 'mail.tm'."""
     if provider.startswith(AAR_PREFIX):
         return "aar"
-    if provider.startswith(MAILSLURP_PREFIX):
-        return "mailslurp.com"
     if provider.startswith(TESTMAIL_PREFIX):
         return "testmail.app"
     if provider == GUERRILLAMAIL_PREFIX or provider.startswith(GUERRILLAMAIL_PREFIX):

@@ -31,11 +31,7 @@ async def create_new_mailbox(provider: str | None = None) -> dict[str, Any]:
     rows = await list_all_providers()
     all_p = tuple(row["connection_str"] for row in rows)
 
-    if provider == "mailslurp":
-        providers = [p for p in all_p if p.startswith("mailslurp.com:")]
-        if not providers:
-            raise RuntimeError("No MailSlurp API keys configured in DB")
-    elif provider == "mail.tm":
+    if provider == "mail.tm":
         providers = [p for p in all_p if p.startswith("https://")]
         if not providers:
             raise RuntimeError("No mail.tm providers configured in DB")

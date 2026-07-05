@@ -10,7 +10,6 @@ mail:
   # Provider base URLs
   mail_tm_bases:
     - "https://api.mail.tm"
-  mailslurp_base_url: "https://api.mailslurp.com"
   testmail_base_url: "https://api.testmail.app"
   mailosaur_base_url: "https://mailosaur.com/api"
   guerrillamail_base_url: "https://www.guerrillamail.com/ajax.php"

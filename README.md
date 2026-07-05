@@ -25,7 +25,6 @@ MAIL_HOST=0.0.0.0 MAIL_PORT=9001 python main.py
 | Provider | Protocol | Notes |
 |----------|----------|-------|
 | testmail.app | REST API | Free tier, namespace + API key |
-| mailslurp.com | REST API | Free tier, API key |
 | mail.tm | REST API | Free, no-auth |
 | IMAP | IMAP/aioimaplib | Bất kỳ IMAP mailbox |
 

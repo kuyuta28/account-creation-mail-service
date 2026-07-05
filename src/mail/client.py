@@ -24,7 +24,7 @@ from ._base import (
     provider_display_name, provider_kind,
     get_mail_tm_bases,
 )
-from .providers import mail_tm, mailslurp_com, testmail_app, guerrillamail_com, mailosaur_com, gmail, sms_webhook
+from .providers import mail_tm, testmail_app, guerrillamail_com, mailosaur_com, gmail, sms_webhook
 from .circuit_breaker import CircuitBreakerConfig, CircuitBreakerState
 
 __all__ = [
@@ -74,8 +74,6 @@ def _rotated_providers(providers: Sequence[str] | None) -> tuple[str, ...]:
 
 async def _create_mailbox_on_provider(provider: str, log_fn: LogFn | None = None) -> Mailbox:
     match provider_kind(provider):
-        case "mailslurp.com":
-            return await mailslurp_com.create_mailbox(provider, log_fn=log_fn)
         case "testmail.app":
             return await testmail_app.create_mailbox(provider)
         case "guerrillamail.com":
@@ -161,8 +159,6 @@ def make_gmail_mailbox(email: str, app_password: str) -> Mailbox:
 
 async def get_messages(box: Mailbox) -> list[dict]:
     match box.provider:
-        case "mailslurp.com":
-            return await mailslurp_com.get_messages(box)
         case "testmail.app":
             return await testmail_app.get_messages(box)
         case "guerrillamail.com":
@@ -179,8 +175,6 @@ async def get_messages(box: Mailbox) -> list[dict]:
 
 async def get_message_body(box: Mailbox, message_id: str) -> str:
     match box.provider:
-        case "mailslurp.com":
-            return await mailslurp_com.get_message_body(box, message_id)
         case "testmail.app":
             return await testmail_app.get_message_body(box, message_id)
         case "guerrillamail.com":
@@ -208,8 +202,6 @@ async def wait_for_message(
     log_fn: LogFn | None = None,
 ) -> dict | None:
     match box.provider:
-        case "mailslurp.com":
-            return await mailslurp_com.wait_for_message(box, from_contains, subject_contains, timeout, log_fn=log_fn)
         case "testmail.app":
             return await testmail_app.wait_for_message(box, from_contains, subject_contains, timeout, log_fn=log_fn)
         case "guerrillamail.com":

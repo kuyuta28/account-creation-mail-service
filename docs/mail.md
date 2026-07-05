@@ -12,7 +12,6 @@ src/mail/
 ├── client.py             # Public API + dispatcher + circuit breaker
 └── providers/
     ├── mail_tm.py        # mail.tm — free, no API key
-    ├── mailslurp_com.py  # mailslurp.com — API key per inbox
     └── testmail_app.py   # testmail.app — namespace + API key
 ```
 
@@ -31,7 +30,7 @@ class Mailbox:
     token:      str
     account_id: str
     base_url:   str
-    provider:   str = "mail.tm"   # "mail.tm" | "mailslurp.com" | "testmail.app"
+    provider:   str = "mail.tm"   # "mail.tm" | "testmail.app"
     api_key:    str = ""
 ```
 
@@ -53,7 +52,6 @@ Tham số cho circuit breaker — truyền vào `create_mailbox()`.
 | Constant | Giá trị | Ý nghĩa |
 |---|---|---|
 | `MAIL_TM_BASES` | `("https://api.mail.tm",)` | Base URL mail.tm |
-| `MAILSLURP_PREFIX` | `"mailslurp.com:"` | Prefix để nhận diện mailslurp provider string |
 | `TESTMAIL_PREFIX` | `"testmail.app:"` | Prefix để nhận diện testmail provider string |
 
 ### `provider_kind(provider_str) → str`
@@ -61,7 +59,6 @@ Tham số cho circuit breaker — truyền vào `create_mailbox()`.
 Nhận diện loại provider từ provider string:
 
 ```python
-provider_kind("mailslurp.com:ABC123:sk-xxx")  # → "mailslurp.com"
 provider_kind("testmail.app:ns:key")           # → "testmail.app"
 provider_kind("https://api.mail.tm")           # → "mail.tm"
 ```
@@ -78,9 +75,9 @@ Tạo inbox mới. Tự động shuffle + failover qua các provider, có circui
 from src.mail.client import create_mailbox, Mailbox
 
 # Lấy provider từ DB qua config
-providers = cfg.mail.providers_for("elevenlabs")  # → ("mailslurp.com:id:key", ...)
+providers = cfg.mail.providers_for("elevenlabs")  # → ("testmail.app:ns:key", ...)
 mailbox: Mailbox = await create_mailbox(providers, cfg.mail_cfg)
-# Output: "Temp mail (mailslurp.com): abc123@mailslurp.com"
+# Output: "Temp mail (testmail.app): abc123@inbox.testmail.app"
 ```
 
 | Parameter | Type | Default | Mô tả |
@@ -193,7 +190,6 @@ Mỗi provider được identify bằng một string duy nhất:
 | Provider | Format | Ví dụ |
 |---|---|---|
 | mail.tm | `https://api.mail.tm` | `https://api.mail.tm` |
-| mailslurp | `mailslurp.com:<inbox_id>:<api_key>` | `mailslurp.com:abc123:sk-proj-xxx` |
 | testmail | `testmail.app:<namespace>:<api_key>` | `testmail.app:im4vw:eyJhbGci...` |
 
 Provider strings được lấy từ DB qua `cfg.mail.providers_for(service_name)`. Không hardcode trong registrar.
@@ -217,12 +213,6 @@ async def wait_for_message(box: Mailbox, ...) -> Optional[Dict]: ...
 - **Auth**: Không cần API key trước. Create account on-the-fly.
 - **Luồng `create_mailbox`**: `GET /domains` → random username → `POST /accounts` → `POST /token` → trả `Mailbox`
 - **Lưu ý**: hay bị 502, circuit breaker sẽ failover sang provider khác
-
-### mailslurp.com (`mailslurp_com.py`)
-
-- **Auth**: API key per-inbox (lấy từ provider string `mailslurp.com:<inbox_id>:<api_key>`)
-- **Inbox**: Inbox cố định — không tạo mới, đọc từ existing inbox
-- **`wait_for_message`**: Dùng mailslurp's native wait endpoint (không polling thủ công)
 
 ### testmail.app (`testmail_app.py`)
 
@@ -248,7 +238,7 @@ Lấy providers cho một service:
 
 ```python
 providers = cfg.mail.providers_for("elevenlabs")
-# → ("mailslurp.com:abc:key1", "mailslurp.com:def:key2")
+# → ("testmail.app:ns:key1", "testmail.app:ns:key2")
 ```
 
 Khi `tags = ["any"]` → provider serve tất cả services.
@@ -268,4 +258,3 @@ Quản lý qua API:
 | `RuntimeError: No usable temp mail providers configured` | `providers` list trống | Kiểm tra `cfg.mail.providers_for(service)` có trả dữ liệu không |
 | `wait_for_message` trả về `None` | Email chưa đến trong timeout | Tăng `timeout` hoặc kiểm tra email thực sự được gửi |
 | mail.tm 502 | Server side issue | Circuit breaker tự failover — bình thường |
-| mailslurp 429 | Rate limit free tier | Giảm tần suất hoặc thêm API keys |

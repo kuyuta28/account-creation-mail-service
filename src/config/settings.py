@@ -161,7 +161,6 @@ class MailConfig:
     retry_max_delay_sec: int = 30
     # Provider base URLs
     mail_tm_bases: tuple[str, ...] = field(default_factory=lambda: ("https://api.mail.tm",))
-    mailslurp_base_url: str = "https://api.mailslurp.com"
     testmail_base_url: str = "https://api.testmail.app"
     mailosaur_base_url: str = "https://mailosaur.com/api"
     guerrillamail_base_url: str = "https://www.guerrillamail.com/ajax.php"
@@ -477,7 +476,6 @@ def _parse_mail(raw: dict, db_path: Path) -> MailConfig:
         max_retries=int(raw.get("max_retries", 3)),
         retry_max_delay_sec=int(raw.get("retry_max_delay_sec", 30)),
         mail_tm_bases=mail_tm_bases,
-        mailslurp_base_url=str(raw.get("mailslurp_base_url", "https://api.mailslurp.com")),
         testmail_base_url=str(raw.get("testmail_base_url", "https://api.testmail.app")),
         mailosaur_base_url=str(raw.get("mailosaur_base_url", "https://mailosaur.com/api")),
         guerrillamail_base_url=str(raw.get("guerrillamail_base_url", "https://www.guerrillamail.com/ajax.php")),

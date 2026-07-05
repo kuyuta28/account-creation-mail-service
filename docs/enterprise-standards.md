@@ -23,7 +23,6 @@ async def delete_address(cfg: ProviderCfg, addr: str) -> None: ...
 | Provider | Type | Notes |
 |----------|------|-------|
 | **testmail.app** | REST API | Tag-based |
-| **mailslurp** | REST API | Full API |
 | **IMAP generic** | aioimaplib | Bất kỳ inbox IMAP |
 
 ### IMAP Async Rules
